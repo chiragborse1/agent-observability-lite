@@ -53,6 +53,7 @@ The dashboard then reads that stored data back from SQLite and shows the full ru
 ## Features
 
 - Run list with status filters
+- Server-side search, workflow filtering, environment filtering, date filtering, and pagination
 - Run detail view with trace timeline
 - Alert panel for per-run issues
 - Metrics summary for run count, reliability, spend, and average latency
@@ -66,6 +67,7 @@ The dashboard then reads that stored data back from SQLite and shows the full ru
 ```bash
 pnpm install
 pnpm db:migrate
+pnpm test
 pnpm dev
 ```
 
@@ -184,6 +186,7 @@ Append alerts:
 
 Current repo verification:
 
+- `pnpm test` passes
 - `pnpm lint` passes
 - `pnpm build` passes
 - API read/write flow was manually exercised locally
@@ -193,7 +196,6 @@ There is not yet a dedicated automated test suite. That is the next natural step
 
 ## Roadmap
 
-- Add pagination and time-window filters
 - Support OpenAI Agents SDK and custom JSON trace adapters
 - Add anomaly detection rules and saved alert policies
 - Add auth and multi-user separation only if this moves beyond a local tool
