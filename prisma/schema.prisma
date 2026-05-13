@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum RunStatus {
+  healthy
+  degraded
+  failed
+  running
+}
+
+enum RunEnvironment {
+  production
+  staging
+  development
+}
+
+enum StepKind {
+  llm
+  tool
+  retry
+  guardrail
+  handoff
+}
+
+enum StepStatus {
+  completed
+  warning
+  failed
+  running
+}
+
+enum AlertSeverity {
+  critical
+  warning
+  info
+}
+
+model Run {
+  id              String          @id @default(cuid())
+  name            String
+  workflow        String
+  agent           String
+  environment     RunEnvironment
+  customer        String
+  status          RunStatus
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationMs      Int
+  costUsd         Float           @default(0)
+  tokens          Int             @default(0)
+  retries         Int             @default(0)
+  successScore    Int             @default(0)
+  toolFailureRate Float           @default(0)
+  summary         String
+  tagsJson        String          @default("[]")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  alerts          RunAlert[]
+  steps           RunStep[]
+
+  @@index([status])
+  @@index([startedAt])
+}
+
+model RunStep {
+  id         String      @id @default(cuid())
+  runId      String
+  label      String
+  kind       StepKind
+  status     StepStatus
+  startedAt  DateTime
+  durationMs Int
+  costUsd    Float?
+  tokens     Int?
+  message    String
+  toolName   String?
+  model      String?
+  attempt    Int?
+  createdAt  DateTime    @default(now())
+  run        Run         @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, startedAt])
+}
+
+model RunAlert {
+  id        String        @id @default(cuid())
+  runId     String
+  severity  AlertSeverity
+  title     String
+  detail    String
+  createdAt DateTime      @default(now())
+  run       Run           @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+}

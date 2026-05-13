@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Agent Observability Lite
 
-## Getting Started
+Local-first observability and reliability console for AI agents. This MVP stores runs in SQLite, renders a simple dashboard for run debugging, and exposes API routes for ingesting runs, steps, and alerts.
 
-First, run the development server:
+## Current MVP
+
+- SQLite-backed run storage with Prisma
+- Simple dashboard with run explorer, metrics, alerts, and trace timeline
+- Seed command for local demo data
+- Read and write API routes for runs, steps, alerts, and metrics
+
+## Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Prisma
+- SQLite
+- Lucide React
+
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+pnpm db:migrate
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How it works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The dashboard does not discover agents automatically.
 
-## Learn More
+An agent connects by sending HTTP requests to this app:
 
-To learn more about Next.js, take a look at the following resources:
+1. `POST /api/runs` when a task starts
+2. `POST /api/runs/:id/steps` as the agent performs tool calls or model calls
+3. `POST /api/runs/:id/alerts` when something needs attention
+4. `PATCH /api/runs/:id` when the run finishes or changes status
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The app saves those events in SQLite, and the dashboard reads them back.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Demo agent
 
-## Deploy on Vercel
+You can generate a real run from a sample agent script:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm agent:demo
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The script sends a staged run into the local API so you can watch a new run appear in the dashboard. By default it posts to `http://127.0.0.1:3000`, but you can override that with `OBSERVABILITY_BASE_URL`.
+
+## API routes
+
+- `GET /api/metrics`
+- `GET /api/runs`
+- `POST /api/runs`
+- `GET /api/runs/:id`
+- `PATCH /api/runs/:id`
+- `POST /api/runs/:id/steps`
+- `POST /api/runs/:id/alerts`
+
+## Example write payload
+
+```json
+{
+  "name": "Checkout fallback investigation",
+  "workflow": "Payments ops",
+  "agent": "checkout-watcher",
+  "environment": "staging",
+  "customer": "Internal",
+  "status": "running",
+  "startedAt": "2026-05-13T09:20:00Z",
+  "tags": ["payments", "qa"],
+  "steps": [
+    {
+      "label": "Inspect payment attempt",
+      "kind": "tool",
+      "status": "completed",
+      "startedAt": "2026-05-13T09:20:01Z",
+      "durationMs": 620,
+      "toolName": "payments.fetch_attempt",
+      "message": "Loaded the latest payment attempt payload."
+    }
+  ]
+}
+```
+
+## Next useful steps
+
+- Add pagination and time-window filters
+- Support OpenAI Agents SDK and custom JSON trace adapters
+- Add anomaly detection rules and saved alert policies
+- Add auth and multi-user separation only if this moves beyond a local tool
