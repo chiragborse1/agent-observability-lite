@@ -52,6 +52,7 @@ type ToolIssue = {
 
 const schemaMismatchPattern = /\b(schema|payload|shape|parser|parse|field mismatch)\b/i;
 const budgetPattern = /\b(cost|budget|guardrail|spend)\b/i;
+const retryPattern = /\b(retr(?:y|ies|ied)|backoff|fallback|timeout)\b/i;
 
 function summarizeToolIssues(steps: DiagnosisStep[]) {
   const issues = new Map<string, ToolIssue>();
@@ -100,6 +101,13 @@ function buildSignals(run: DiagnosisRun, toolIssue?: ToolIssue) {
     `${combinedAlertText} ${combinedToolText}`,
   );
   const budgetRisk = budgetPattern.test(combinedAlertText);
+  const retryMentions = retryPattern.test(combinedAlertText);
+  const retrySteps = run.steps.filter((step) => step.kind === "retry");
+  const hasRetrySteps = retrySteps.length > 0;
+  const retryAttemptCount = retrySteps.reduce(
+    (maxAttempt, step) => Math.max(maxAttempt, step.attempt ?? 1),
+    0,
+  );
 
   if (toolIssue) {
     signals.push({
@@ -156,6 +164,29 @@ function buildSignals(run: DiagnosisRun, toolIssue?: ToolIssue) {
     });
   }
 
+  if (run.retries > 0 || retryMentions || hasRetrySteps) {
+    const traceRetryCount = Math.max(retryAttemptCount > 0 ? retryAttemptCount - 1 : 0, retrySteps.length);
+
+    signals.push({
+      id: "signal:retries-observed",
+      severity: run.status === "failed" ? "critical" : "warning",
+      title: "Retry activity affected this run",
+      detail:
+        run.retries > 0
+          ? `${run.retries} retry event${run.retries === 1 ? "" : "s"} were reported at the run level.`
+          : `${traceRetryCount} retry step${traceRetryCount === 1 ? "" : "s"} appeared in the trace.`,
+    });
+  }
+
+  if (run.retries > 0 && !hasRetrySteps) {
+    signals.push({
+      id: "signal:retry-trace-gap",
+      severity: "info",
+      title: "Retry count was reported without retry spans",
+      detail: "The summary says retries happened, but the trace does not show retry steps yet.",
+    });
+  }
+
   if (budgetRisk) {
     signals.push({
       id: "signal:budget-risk",
@@ -207,6 +238,14 @@ function buildDegradedDiagnosis(run: DiagnosisRun, toolIssue: ToolIssue | undefi
     };
   }
 
+  if (run.retries > 0) {
+    return {
+      headline: "The run recovered after retry debt",
+      likelyCause: `The workflow eventually completed, but ${run.retries} reported retr${run.retries === 1 ? "y" : "ies"} pushed it out of a clean healthy state.`,
+      nextAction: "Emit retry spans for each recovery attempt and decide whether repeated retries should downgrade or fail the workflow sooner.",
+    };
+  }
+
   return {
     headline: "The run completed with reliability debt",
     likelyCause: run.summary,
@@ -247,7 +286,7 @@ function buildHealthyDiagnosis(run: DiagnosisRun, toolIssue: ToolIssue | undefin
     return {
       headline: "The run recovered cleanly",
       likelyCause: "A transient tool issue appeared during execution, but the workflow still completed successfully.",
-      nextAction: "Track whether this pattern repeats. If it does, fix the underlying dependency before it starts pushing runs into degraded territory.",
+      nextAction: "Track whether this pattern repeats. If it does, fix the underlying dependency before it starts pushing runs into degraded territory, and keep retry attempts visible in the trace.",
     };
   }
 

@@ -49,6 +49,9 @@ test("buildDashboardSnapshotFromRuns aggregates metrics and workflows", () => {
   assert.equal(snapshot.metrics[0]?.value, "3");
   assert.equal(snapshot.metrics[0]?.detail, "1 failed, 0 active");
   assert.equal(snapshot.metrics[2]?.value, "$0.450");
+  assert.equal(snapshot.metrics[3]?.label, "Healthy completion");
+  assert.equal(snapshot.metrics[3]?.value, "33%");
+  assert.equal(snapshot.metrics[3]?.detail, "1 of 3 closed runs ended healthy");
   assert.equal(snapshot.workflows.length, 2);
   assert.equal(snapshot.workflows[0]?.name, "Support routing");
   assert.equal(snapshot.workflows[0]?.runs, 2);

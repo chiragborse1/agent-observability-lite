@@ -119,3 +119,49 @@ test("buildRunDiagnostics treats quiet healthy runs as a baseline", () => {
   assert.equal(result.diagnosis.headline, "No active reliability issue detected");
   assert.equal(result.signals.length, 0);
 });
+
+test("buildRunDiagnostics derives retry signals from alerts and run-level counts", () => {
+  const result = buildRunDiagnostics({
+    status: "degraded",
+    durationMs: 8000,
+    costUsd: 0.013,
+    retries: 2,
+    successScore: 74,
+    toolFailureRate: 0.25,
+    summary: "Recovered after retries but exceeded the latency target.",
+    alerts: [
+      {
+        severity: "warning",
+        title: "Retry cluster detected",
+        detail: "Payment lookup retried twice.",
+      },
+    ],
+    steps: [
+      {
+        id: "step-1",
+        label: "Inspect payment attempt",
+        kind: "tool",
+        status: "completed",
+        durationMs: 620,
+        toolName: "payments.fetch_attempt",
+        message: "Loaded the latest payment attempt payload.",
+      },
+      {
+        id: "step-2",
+        label: "Draft remediation summary",
+        kind: "llm",
+        status: "completed",
+        durationMs: 1380,
+        message: "Prepared the next action summary.",
+      },
+    ],
+  });
+
+  assert.equal(result.diagnosis.headline, "The run recovered after retry debt");
+  assert.ok(
+    result.signals.some((signal) => signal.id === "signal:retries-observed"),
+  );
+  assert.ok(
+    result.signals.some((signal) => signal.id === "signal:retry-trace-gap"),
+  );
+});

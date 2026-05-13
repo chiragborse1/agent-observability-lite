@@ -22,6 +22,8 @@ export function buildDashboardSnapshotFromRuns<T extends RunLike>(
   const totalRuns = runs.length;
   const failedRuns = runs.filter((run) => run.status === "failed").length;
   const runningRuns = runs.filter((run) => run.status === "running").length;
+  const healthyRuns = runs.filter((run) => run.status === "healthy").length;
+  const closedRuns = runs.filter((run) => run.status !== "running").length;
   const totalLatency = runs.reduce((sum, run) => sum + run.durationMs, 0);
   const totalCost = runs.reduce((sum, run) => sum + run.costUsd, 0);
   const averageRetries =
@@ -69,9 +71,9 @@ export function buildDashboardSnapshotFromRuns<T extends RunLike>(
         detail: `${averageRetries.toFixed(1)} retries per run`,
       },
       {
-        label: "Reliability",
-        value: `${totalRuns === 0 ? 0 : Math.round(((totalRuns - failedRuns) / totalRuns) * 100)}%`,
-        detail: "Runs not ending in failure",
+        label: "Healthy completion",
+        value: `${closedRuns === 0 ? 0 : Math.round((healthyRuns / closedRuns) * 100)}%`,
+        detail: `${healthyRuns} of ${closedRuns} closed runs ended healthy`,
       },
     ],
     workflows: Array.from(workflowMap.values())
