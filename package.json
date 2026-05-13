@@ -2,6 +2,10 @@
   "name": "agent-observability-lite",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "aol": "./bin/aol.mjs",
+    "agent-observability-lite": "./bin/aol.mjs"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +13,9 @@
     "lint": "eslint",
     "test": "tsx --test src/**/*.test.ts",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "aol": "node bin/aol.mjs",
+    "cli:check": "node --check bin/aol.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
