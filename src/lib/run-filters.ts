@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { environmentValues, runStatusValues } from "@/lib/validators";
+import { environmentValues, runStatusValues } from "./validators";
 
 const pageSizeOptions = [5, 10, 20, 50] as const;
 const statusValues = ["all", ...runStatusValues] as const;

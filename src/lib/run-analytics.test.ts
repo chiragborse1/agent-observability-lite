@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildDashboardSnapshotFromRuns } from "@/lib/run-analytics";
+import { buildDashboardSnapshotFromRuns } from "./run-analytics";
 
 const runs = [
   {

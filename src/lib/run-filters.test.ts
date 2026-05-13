@@ -4,7 +4,7 @@ import {
   buildRunQueryString,
   createPagination,
   normalizeRunListFilters,
-} from "@/lib/run-filters";
+} from "./run-filters";
 
 test("normalizeRunListFilters applies defaults", () => {
   const filters = normalizeRunListFilters({});

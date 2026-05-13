@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildRunDiagnostics } from "@/lib/run-diagnosis";
+import { buildRunDiagnostics } from "./run-diagnosis";
 
 test("buildRunDiagnostics flags schema mismatch failures", () => {
   const result = buildRunDiagnostics({

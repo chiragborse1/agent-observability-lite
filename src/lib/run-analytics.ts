@@ -1,4 +1,4 @@
-import type { AlertSeverity, DashboardSnapshot } from "@/lib/observability-data";
+import type { AlertSeverity, DashboardSnapshot } from "./observability-data";
 
 type AlertLike = {
   id: string;

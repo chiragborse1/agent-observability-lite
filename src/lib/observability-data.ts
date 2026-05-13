@@ -1,22 +1,22 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { buildDashboardSnapshotFromRuns } from "@/lib/run-analytics";
+import { prisma } from "./prisma";
+import { buildDashboardSnapshotFromRuns } from "./run-analytics";
 import {
   buildRunDiagnostics,
   type RunDiagnosis,
   type RunDiagnosisSignal,
-} from "@/lib/run-diagnosis";
+} from "./run-diagnosis";
 import {
   createPagination,
   type RunListFilters,
   type RunPagination,
-} from "@/lib/run-filters";
+} from "./run-filters";
 import type {
   AppendAlertsInput,
   AppendStepsInput,
   CreateRunInput,
   UpdateRunInput,
-} from "@/lib/validators";
+} from "./validators";
 
 export type RunStatus = "healthy" | "degraded" | "failed" | "running";
 export type StepKind = "llm" | "tool" | "retry" | "guardrail" | "handoff";

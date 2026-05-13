@@ -23,12 +23,12 @@ import {
   type RunsPage,
   type StepKind,
   type StepStatus,
-} from "@/lib/observability-data";
+} from "../lib/observability-data";
 import {
   buildRunQueryString,
   runPageSizeOptions,
   type RunListFilters,
-} from "@/lib/run-filters";
+} from "../lib/run-filters";
 
 type StatusFilter = RunStatus | "all";
 

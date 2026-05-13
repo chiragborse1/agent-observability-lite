@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { getRunById, updateRun } from "@/lib/observability-data";
-import { updateRunSchema } from "@/lib/validators";
+import { getRunById, updateRun } from "../../../../lib/observability-data";
+import { updateRunSchema } from "../../../../lib/validators";
 
 type RouteContext = {
   params: Promise<{

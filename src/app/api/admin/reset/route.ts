@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { clearRuns } from "@/lib/observability-data";
+import { clearRuns } from "../../../../lib/observability-data";
 
 export async function POST() {
   await clearRuns();

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { appendAlerts } from "@/lib/observability-data";
-import { appendAlertsSchema } from "@/lib/validators";
+import { appendAlerts } from "../../../../../lib/observability-data";
+import { appendAlertsSchema } from "../../../../../lib/validators";
 
 type RouteContext = {
   params: Promise<{

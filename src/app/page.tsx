@@ -1,11 +1,11 @@
-import { DashboardShell } from "@/components/dashboard-shell";
+import { DashboardShell } from "../components/dashboard-shell";
 import {
   getDashboardSnapshot,
   listRunFilterOptions,
   listRuns,
   listRunsPage,
-} from "@/lib/observability-data";
-import { normalizeRunListFilters } from "@/lib/run-filters";
+} from "../lib/observability-data";
+import { normalizeRunListFilters } from "../lib/run-filters";
 
 export const dynamic = "force-dynamic";
 

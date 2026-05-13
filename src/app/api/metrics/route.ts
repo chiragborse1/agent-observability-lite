@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDashboardSnapshot } from "@/lib/observability-data";
+import { getDashboardSnapshot } from "../../../lib/observability-data";
 
 export async function GET() {
   const snapshot = await getDashboardSnapshot();
