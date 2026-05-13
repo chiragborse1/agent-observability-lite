@@ -173,7 +173,7 @@ function buildSignals(run: DiagnosisRun, toolIssue?: ToolIssue) {
       title: "Retry activity affected this run",
       detail:
         run.retries > 0
-          ? `${run.retries} retry event${run.retries === 1 ? "" : "s"} were reported at the run level.`
+          ? `${run.retries} retry event${run.retries === 1 ? " was" : "s were"} reported at the run level.`
           : `${traceRetryCount} retry step${traceRetryCount === 1 ? "" : "s"} appeared in the trace.`,
     });
   }
