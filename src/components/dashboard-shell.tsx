@@ -74,18 +74,17 @@ const menuGroups = [
   {
     label: "Workspace",
     items: [
-      { label: "Overview", icon: Gauge, active: true },
-      { label: "Runs", icon: Workflow, active: false },
-      { label: "Signals", icon: AlertTriangle, active: false },
-      { label: "Workflows", icon: Radar, active: false },
+      { label: "Overview", icon: Gauge, href: "#overview" },
+      { label: "Workflows", icon: Radar, href: "#workflows" },
+      { label: "Runs", icon: Workflow, href: "#runs" },
     ],
   },
   {
-    label: "Connect",
+    label: "Debug",
     items: [
-      { label: "Agents", icon: Bot, active: false },
-      { label: "Ingestion", icon: Database, active: false },
-      { label: "Guardrails", icon: ShieldAlert, active: false },
+      { label: "Trace", icon: Bot, href: "#trace" },
+      { label: "Signals", icon: AlertTriangle, href: "#signals" },
+      { label: "Ingestion", icon: Database, href: "#ingestion" },
     ],
   },
 ] as const;
@@ -162,6 +161,7 @@ export function DashboardShell({
   filterOptions,
 }: DashboardShellProps) {
   const [selectedRunId, setSelectedRunId] = useState(initialRuns[0]?.id ?? null);
+  const [activeMenuItem, setActiveMenuItem] = useState("Overview");
   const selectedRun =
     initialRuns.find((run) => run.id === selectedRunId) ?? initialRuns[0] ?? null;
   const hasFiltersApplied =
@@ -211,18 +211,19 @@ export function DashboardShell({
                 </p>
                 <div className="space-y-1.5">
                   {group.items.map((item) => (
-                    <button
+                    <a
                       key={item.label}
-                      type="button"
+                      href={item.href}
+                      onClick={() => setActiveMenuItem(item.label)}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm ${
-                        item.active
+                        activeMenuItem === item.label
                           ? "border border-zinc-800 bg-zinc-950 text-white"
                           : "text-zinc-500"
                       }`}
                     >
                       <item.icon className="size-4" />
                       <span>{item.label}</span>
-                    </button>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -259,7 +260,7 @@ export function DashboardShell({
         </aside>
 
         <div className="min-w-0">
-          <header className="border-b border-zinc-900 bg-black px-4 py-4 sm:px-5">
+          <header id="overview" className="scroll-mt-5 border-b border-zinc-900 bg-black px-4 py-4 sm:px-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-2">
                 <p className="text-xs uppercase tracking-[0.16em] text-zinc-600">
@@ -274,7 +275,7 @@ export function DashboardShell({
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
+              <div id="ingestion" className="flex scroll-mt-5 flex-wrap gap-2 text-xs text-zinc-400">
                 {routeLabels.map((route) => (
                   <span
                     key={route}
@@ -313,7 +314,7 @@ export function DashboardShell({
                 </div>
               </div>
 
-              <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
+              <section id="workflows" className="scroll-mt-5 rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-white">Workflow snapshot</p>
                   <Radar className="size-4 text-zinc-600" />
@@ -347,7 +348,7 @@ export function DashboardShell({
             </section>
 
             <section className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
-              <aside className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
+              <aside id="runs" className="scroll-mt-5 rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -580,7 +581,7 @@ export function DashboardShell({
                 </div>
               </aside>
 
-              <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
+              <section id="trace" className="scroll-mt-5 rounded-2xl border border-zinc-900 bg-zinc-950 p-4">
                 {selectedRun ? (
                   <div className="grid gap-5">
                     <header className="rounded-2xl border border-zinc-900 bg-zinc-900/70 p-5">
@@ -737,7 +738,7 @@ export function DashboardShell({
                       </div>
 
                       <aside className="space-y-4 2xl:sticky 2xl:top-5 2xl:self-start">
-                        <section className="rounded-2xl border border-zinc-900 bg-zinc-900/70 p-4">
+                        <section id="signals" className="scroll-mt-5 rounded-2xl border border-zinc-900 bg-zinc-900/70 p-4">
                           <h3 className="text-sm font-medium text-white">Likely cause</h3>
                           <div className="mt-3 rounded-xl border border-zinc-800 px-3 py-3">
                             <p className="text-sm font-medium text-white">
@@ -827,7 +828,7 @@ export function DashboardShell({
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/50 px-5 py-10">
+                  <div id="signals" className="scroll-mt-5 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/50 px-5 py-10">
                     <p className="text-base font-medium text-white">No run selected.</p>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
                       Start by creating a run, then stream steps and alerts into it as the
