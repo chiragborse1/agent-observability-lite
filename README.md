@@ -1,8 +1,8 @@
 # Agent Observability Lite
 
-Local-first observability and reliability console for AI agents.
+Local-first reliability debugger for AI agents.
 
-This project records agent runs, stores their steps and alerts in SQLite, and gives you a simple dashboard to inspect failures, retries, latency, spend, and trace history.
+This project records agent runs, stores their steps and alerts in SQLite, and gives you a simple dashboard to inspect failures, retries, latency, spend, trace history, and likely causes.
 
 It is built as a practical MVP:
 
@@ -35,7 +35,7 @@ The dashboard then reads that stored data back from SQLite and shows the full ru
 ## Current MVP
 
 - SQLite-backed run storage with Prisma
-- Simple dashboard with run explorer, metrics, alerts, and trace timeline
+- Simple dashboard with run explorer, metrics, diagnosis, alerts, and trace timeline
 - Seed command for local demo data
 - Demo agent script that sends a real sample run into the app
 - Read and write API routes for runs, steps, alerts, and metrics
@@ -55,6 +55,7 @@ The dashboard then reads that stored data back from SQLite and shows the full ru
 - Run list with status filters
 - Server-side search, workflow filtering, environment filtering, date filtering, and pagination
 - Run detail view with trace timeline
+- Per-run diagnosis with likely cause, risk signals, and next action guidance
 - Alert panel for per-run issues
 - Metrics summary for run count, reliability, spend, and average latency
 - Workflow snapshot grouped by workflow name
@@ -90,7 +91,7 @@ An agent connects by sending HTTP requests to this app:
 3. `POST /api/runs/:id/alerts` when something needs attention
 4. `PATCH /api/runs/:id` when the run finishes or changes status
 
-The app saves those events in SQLite, and the dashboard reads them back.
+The app saves those events in SQLite, and the dashboard reads them back. It then derives simple reliability signals from the run, such as repeated tool instability, schema drift hints, long latency, or spend without outcome.
 
 ## Demo agent integration
 
@@ -192,12 +193,13 @@ Current repo verification:
 - API read/write flow was manually exercised locally
 - `pnpm agent:demo` creates a real run through the ingestion endpoints
 
-There is not yet a dedicated automated test suite. That is the next natural step once the API shape and product behavior stabilize.
+Coverage is still focused on core helpers and dashboard aggregation. Full API integration coverage is still pending.
 
 ## Roadmap
 
 - Support OpenAI Agents SDK and custom JSON trace adapters
 - Add anomaly detection rules and saved alert policies
+- Add API integration tests and background ingestion hardening
 - Add auth and multi-user separation only if this moves beyond a local tool
 
 ## License

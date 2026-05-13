@@ -16,7 +16,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Agent Observability Lite",
   description:
-    "Local-first observability and reliability console for AI agents.",
+    "Local-first reliability debugger for AI agents.",
 };
 
 export default function RootLayout({
