@@ -374,6 +374,14 @@ export async function getDashboardSnapshot(runsInput?: AgentRun[]) {
   return buildDashboardSnapshotFromRuns(runs);
 }
 
+export async function clearRuns() {
+  await prisma.$transaction([
+    prisma.runAlert.deleteMany(),
+    prisma.runStep.deleteMany(),
+    prisma.run.deleteMany(),
+  ]);
+}
+
 export async function createRun(input: CreateRunInput) {
   const derived = deriveRunValues(input);
 
