@@ -2,6 +2,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildDashboardSnapshotFromRuns } from "@/lib/run-analytics";
 import {
+  buildRunDiagnostics,
+  type RunDiagnosis,
+  type RunDiagnosisSignal,
+} from "@/lib/run-diagnosis";
+import {
   createPagination,
   type RunListFilters,
   type RunPagination,
@@ -61,6 +66,8 @@ export type AgentRun = {
   tags: string[];
   alerts: RunAlert[];
   steps: RunStep[];
+  diagnosis: RunDiagnosis;
+  signals: RunDiagnosisSignal[];
 };
 
 export type DashboardMetric = {
@@ -110,7 +117,7 @@ function parseTags(value: string) {
 }
 
 function mapRun(run: RunWithRelations): AgentRun {
-  return {
+  const mappedRun = {
     id: run.id,
     name: run.name,
     workflow: run.workflow,
@@ -148,6 +155,11 @@ function mapRun(run: RunWithRelations): AgentRun {
       model: step.model ?? undefined,
       attempt: step.attempt ?? undefined,
     })),
+  };
+
+  return {
+    ...mappedRun,
+    ...buildRunDiagnostics(mappedRun),
   };
 }
 

@@ -128,21 +128,26 @@ export function DashboardShell({
                   Agent Observability Lite
                 </span>
                 <span className="rounded-full border border-slate-700 px-3 py-1">
-                  SQLite-backed MVP
+                  Reliability debugger
                 </span>
               </div>
               <div className="space-y-2">
                 <h1 className="text-3xl font-semibold tracking-tight text-white">
-                  Track runs, inspect traces, and catch retry-driven failures early.
+                  Debug why agents fail, loop, or burn budget.
                 </h1>
                 <p className="max-w-3xl text-sm leading-7 text-slate-400">
-                  This MVP stores runs in SQLite, exposes ingestion endpoints, and
-                  keeps the UI focused on what matters most: status, latency, spend,
-                  retries, and run-level debugging.
+                  This app stores runs in SQLite, accepts step-level ingestion, and
+                  turns trace history into likely causes, active signals, and next
+                  actions.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                {["GET /api/metrics", "GET /api/runs", "POST /api/runs", "POST /api/runs/:id/steps"].map(
+                {[
+                  "GET /api/metrics",
+                  "POST /api/runs",
+                  "POST /api/runs/:id/steps",
+                  "PATCH /api/runs/:id",
+                ].map(
                   (route) => (
                     <span
                       key={route}
@@ -421,6 +426,9 @@ export function DashboardShell({
                         <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-400">
                           {selectedRun.summary}
                         </p>
+                        <p className="mt-2 text-sm font-medium text-slate-300">
+                          {selectedRun.diagnosis.headline}
+                        </p>
                       </div>
                     </div>
 
@@ -544,11 +552,54 @@ export function DashboardShell({
 
                   <aside className="space-y-4">
                     <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-                      <h3 className="text-sm font-medium text-white">Current alerts</h3>
+                      <h3 className="text-sm font-medium text-white">Likely cause</h3>
+                      <div className="mt-3 rounded-lg border border-slate-800 px-3 py-3">
+                        <p className="text-sm font-medium text-white">
+                          {selectedRun.diagnosis.headline}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-slate-400">
+                          {selectedRun.diagnosis.likelyCause}
+                        </p>
+                        <p className="mt-3 text-xs uppercase tracking-[0.12em] text-slate-500">
+                          What to check next
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                          {selectedRun.diagnosis.nextAction}
+                        </p>
+                      </div>
+                    </section>
+
+                    <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <h3 className="text-sm font-medium text-white">Signals</h3>
+                      <div className="mt-3 grid gap-3">
+                        {selectedRun.signals.length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-slate-800 px-3 py-6 text-sm text-slate-500">
+                            No derived risk signals on this run.
+                          </div>
+                        ) : (
+                          selectedRun.signals.map((signal) => (
+                            <div
+                              key={signal.id}
+                              className={`rounded-lg border px-3 py-3 ${alertStyles[signal.severity]}`}
+                            >
+                              <p className="text-sm font-medium text-white">
+                                {signal.title}
+                              </p>
+                              <p className="mt-2 text-sm leading-6 text-current/90">
+                                {signal.detail}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </section>
+
+                    <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <h3 className="text-sm font-medium text-white">Reported alerts</h3>
                       <div className="mt-3 grid gap-3">
                         {selectedRun.alerts.length === 0 ? (
                           <div className="rounded-lg border border-dashed border-slate-800 px-3 py-6 text-sm text-slate-500">
-                            No alerts on this run.
+                            No reported alerts on this run.
                           </div>
                         ) : (
                           selectedRun.alerts.map((alert) => (
