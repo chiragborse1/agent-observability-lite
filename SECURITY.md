@@ -30,3 +30,7 @@ The highest priority issues are:
 - dependency vulnerabilities with real exploitability in this app
 
 At the moment this project is a local-first MVP, but security issues in API input handling, storage, and future integrations still matter.
+
+## Local-first API note
+
+The current API includes local development write paths, including `POST /api/admin/reset`, which clears run data. Do not expose this dashboard directly on a public network without adding authentication and access controls first.

@@ -24,6 +24,8 @@ Open `http://localhost:3000`.
 pnpm lint
 pnpm build
 pnpm db:seed
+pnpm cli:check
+pnpm aol status
 ```
 
 ## Contribution guidelines
