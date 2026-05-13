@@ -1,6 +1,7 @@
 "use client";
 
-import { useDeferredValue, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 import {
   AlertTriangle,
   Bot,
@@ -16,18 +17,28 @@ import {
   type AlertSeverity,
   type DashboardSnapshot,
   type RunStatus,
+  type RunsPage,
   type StepKind,
   type StepStatus,
 } from "@/lib/observability-data";
+import {
+  buildRunQueryString,
+  runPageSizeOptions,
+  type RunListFilters,
+} from "@/lib/run-filters";
 
 type StatusFilter = RunStatus | "all";
 
 type DashboardShellProps = {
   initialRuns: AgentRun[];
+  pagination: RunsPage["pagination"];
   snapshot: DashboardSnapshot;
+  filters: RunListFilters;
+  filterOptions: {
+    workflows: string[];
+    environments: AgentRun["environment"][];
+  };
 };
-
-const statusFilters: StatusFilter[] = ["all", "healthy", "degraded", "failed", "running"];
 
 const statusStyles: Record<RunStatus, string> = {
   healthy: "bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/20",
@@ -87,27 +98,24 @@ function stepIcon(kind: StepKind) {
   }
 }
 
-export function DashboardShell({ initialRuns, snapshot }: DashboardShellProps) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [query, setQuery] = useState("");
+export function DashboardShell({
+  initialRuns,
+  pagination,
+  snapshot,
+  filters,
+  filterOptions,
+}: DashboardShellProps) {
   const [selectedRunId, setSelectedRunId] = useState(initialRuns[0]?.id ?? null);
-  const deferredQuery = useDeferredValue(query.trim().toLowerCase());
-
-  const filteredRuns = initialRuns.filter((run) => {
-    const matchesStatus = statusFilter === "all" || run.status === statusFilter;
-    const matchesQuery =
-      deferredQuery.length === 0
-        ? true
-        : [run.name, run.workflow, run.agent, run.customer, ...run.tags]
-            .join(" ")
-            .toLowerCase()
-            .includes(deferredQuery);
-
-    return matchesStatus && matchesQuery;
-  });
-
   const selectedRun =
-    filteredRuns.find((run) => run.id === selectedRunId) ?? filteredRuns[0] ?? null;
+    initialRuns.find((run) => run.id === selectedRunId) ?? initialRuns[0] ?? null;
+  const hasFiltersApplied =
+    filters.status !== "all" ||
+    filters.query.length > 0 ||
+    filters.workflow !== "all" ||
+    filters.environment !== "all" ||
+    filters.from.length > 0 ||
+    filters.to.length > 0 ||
+    filters.pageSize !== 10;
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -199,52 +207,111 @@ export function DashboardShell({ initialRuns, snapshot }: DashboardShellProps) {
                 <div>
                   <h2 className="text-lg font-semibold text-white">Runs</h2>
                   <p className="text-sm text-slate-500">
-                    {filteredRuns.length} visible
+                    {pagination.total} matched
                   </p>
                 </div>
                 <span className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400">
-                  {initialRuns.length} total
+                  page {pagination.page} of {pagination.pageCount}
                 </span>
               </div>
 
-              <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-400">
-                <Search className="size-4" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search runs"
-                  className="w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
-                />
-              </label>
+              <form className="grid gap-3" action="/" method="GET">
+                <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-slate-400">
+                  <Search className="size-4" />
+                  <input
+                    name="query"
+                    defaultValue={filters.query}
+                    placeholder="Search runs"
+                    className="w-full bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
+                  />
+                </label>
 
-              <div className="flex flex-wrap gap-2">
-                {statusFilters.map((filter) => {
-                  const active = filter === statusFilter;
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <select
+                    name="status"
+                    defaultValue={filters.status}
+                    className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none"
+                  >
+                    {(["all", "healthy", "degraded", "failed", "running"] as StatusFilter[]).map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    name="workflow"
+                    defaultValue={filters.workflow}
+                    className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none"
+                  >
+                    <option value="all">all workflows</option>
+                    {filterOptions.workflows.map((workflow) => (
+                      <option key={workflow} value={workflow}>
+                        {workflow}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    name="environment"
+                    defaultValue={filters.environment}
+                    className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none"
+                  >
+                    <option value="all">all environments</option>
+                    {filterOptions.environments.map((environment) => (
+                      <option key={environment} value={environment}>
+                        {environment}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    name="pageSize"
+                    defaultValue={`${filters.pageSize}`}
+                    className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none"
+                  >
+                    {runPageSizeOptions.map((pageSize) => (
+                      <option key={pageSize} value={pageSize}>
+                        {pageSize} per page
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    name="from"
+                    defaultValue={filters.from}
+                    className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none"
+                  />
+                  <input
+                    type="date"
+                    name="to"
+                    defaultValue={filters.to}
+                    className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 outline-none"
+                  />
+                </div>
 
-                  return (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setStatusFilter(filter)}
-                      className={`rounded-md border px-2.5 py-1.5 text-sm capitalize ${
-                        active
-                          ? "border-slate-600 bg-slate-800 text-white"
-                          : "border-slate-800 bg-slate-950 text-slate-400"
-                      }`}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    className="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white"
+                  >
+                    Apply filters
+                  </button>
+                  {hasFiltersApplied ? (
+                    <Link
+                      href="/"
+                      className="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-400"
                     >
-                      {filter}
-                    </button>
-                  );
-                })}
-              </div>
+                      Reset
+                    </Link>
+                  ) : null}
+                </div>
+              </form>
 
               <div className="grid max-h-[980px] gap-3 overflow-y-auto pr-1">
-                {filteredRuns.length === 0 ? (
+                {initialRuns.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 px-4 py-8 text-sm text-slate-500">
                     No runs match the current filters.
                   </div>
                 ) : (
-                  filteredRuns.map((run) => {
+                  initialRuns.map((run) => {
                     const active = run.id === selectedRun?.id;
 
                     return (
@@ -294,6 +361,36 @@ export function DashboardShell({ initialRuns, snapshot }: DashboardShellProps) {
                     );
                   })
                 )}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-slate-800 pt-2 text-sm text-slate-400">
+                <Link
+                  href={buildRunQueryString(filters, {
+                    page: Math.max(1, pagination.page - 1),
+                  })}
+                  className={`rounded-md border px-3 py-2 ${
+                    pagination.hasPreviousPage
+                      ? "border-slate-700 bg-slate-800 text-white"
+                      : "pointer-events-none border-slate-800 bg-slate-950 text-slate-600"
+                  }`}
+                >
+                  Previous
+                </Link>
+                <span>
+                  showing {initialRuns.length} of {pagination.total}
+                </span>
+                <Link
+                  href={buildRunQueryString(filters, {
+                    page: pagination.page + 1,
+                  })}
+                  className={`rounded-md border px-3 py-2 ${
+                    pagination.hasNextPage
+                      ? "border-slate-700 bg-slate-800 text-white"
+                      : "pointer-events-none border-slate-800 bg-slate-950 text-slate-600"
+                  }`}
+                >
+                  Next
+                </Link>
               </div>
             </div>
           </aside>

@@ -1,5 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { buildDashboardSnapshotFromRuns } from "@/lib/run-analytics";
+import {
+  createPagination,
+  type RunListFilters,
+  type RunPagination,
+} from "@/lib/run-filters";
 import type {
   AppendAlertsInput,
   AppendStepsInput,
@@ -88,9 +94,9 @@ type RunWithRelations = Prisma.RunGetPayload<{
   };
 }>;
 
-type RunFilters = {
-  status?: RunStatus | "all";
-  query?: string;
+export type RunsPage = {
+  data: AgentRun[];
+  pagination: RunPagination;
 };
 
 function parseTags(value: string) {
@@ -220,25 +226,67 @@ function deriveRunValues(input: {
   };
 }
 
-function applyFilters(runs: AgentRun[], filters?: RunFilters) {
-  const status = filters?.status ?? "all";
-  const query = filters?.query?.trim().toLowerCase();
+function buildRunWhere(filters?: Partial<RunListFilters>): Prisma.RunWhereInput | undefined {
+  if (!filters) {
+    return undefined;
+  }
 
-  return runs.filter((run) => {
-    const matchesStatus = status === "all" ? true : run.status === status;
-    const matchesQuery =
-      !query ||
-      [run.name, run.workflow, run.agent, run.customer, ...run.tags]
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
+  const and: Prisma.RunWhereInput[] = [];
 
-    return matchesStatus && matchesQuery;
-  });
+  if (filters.status && filters.status !== "all") {
+    and.push({
+      status: filters.status,
+    });
+  }
+
+  if (filters.workflow && filters.workflow !== "all") {
+    and.push({
+      workflow: filters.workflow,
+    });
+  }
+
+  if (filters.environment && filters.environment !== "all") {
+    and.push({
+      environment: filters.environment,
+    });
+  }
+
+  if (filters.from || filters.to) {
+    and.push({
+      startedAt: {
+        gte: filters.from ? new Date(`${filters.from}T00:00:00.000Z`) : undefined,
+        lte: filters.to ? new Date(`${filters.to}T23:59:59.999Z`) : undefined,
+      },
+    });
+  }
+
+  if (filters.query?.trim()) {
+    const query = filters.query.trim();
+
+    and.push({
+      OR: [
+        { name: { contains: query } },
+        { workflow: { contains: query } },
+        { agent: { contains: query } },
+        { customer: { contains: query } },
+        { summary: { contains: query } },
+        { tagsJson: { contains: query } },
+      ],
+    });
+  }
+
+  if (and.length === 0) {
+    return undefined;
+  }
+
+  return {
+    AND: and,
+  };
 }
 
-export async function listRuns(filters?: RunFilters) {
+async function fetchRuns(where?: Prisma.RunWhereInput, pagination?: Pick<RunPagination, "page" | "pageSize">) {
   const runs = await prisma.run.findMany({
+    where,
     include: {
       alerts: true,
       steps: {
@@ -250,9 +298,47 @@ export async function listRuns(filters?: RunFilters) {
     orderBy: {
       startedAt: "desc",
     },
+    skip:
+      pagination && pagination.page > 1
+        ? (pagination.page - 1) * pagination.pageSize
+        : undefined,
+    take: pagination?.pageSize,
   });
 
-  return applyFilters(runs.map(mapRun), filters);
+  return runs.map(mapRun);
+}
+
+export async function listRuns(filters?: Partial<RunListFilters>) {
+  return fetchRuns(buildRunWhere(filters));
+}
+
+export async function listRunsPage(filters: RunListFilters): Promise<RunsPage> {
+  const where = buildRunWhere(filters);
+  const total = await prisma.run.count({ where });
+  const pagination = createPagination(total, filters.page, filters.pageSize);
+  const data = await fetchRuns(where, pagination);
+
+  return {
+    data,
+    pagination,
+  };
+}
+
+export async function listRunFilterOptions() {
+  const runs = await prisma.run.findMany({
+    select: {
+      workflow: true,
+      environment: true,
+    },
+    orderBy: {
+      workflow: "asc",
+    },
+  });
+
+  return {
+    workflows: Array.from(new Set(runs.map((run) => run.workflow))).sort(),
+    environments: Array.from(new Set(runs.map((run) => run.environment as RunEnvironment))).sort(),
+  };
 }
 
 export async function getRunById(id: string) {
@@ -273,69 +359,7 @@ export async function getRunById(id: string) {
 
 export async function getDashboardSnapshot(runsInput?: AgentRun[]) {
   const runs = runsInput ?? (await listRuns());
-  const totalRuns = runs.length;
-  const failedRuns = runs.filter((run) => run.status === "failed").length;
-  const runningRuns = runs.filter((run) => run.status === "running").length;
-  const totalLatency = runs.reduce((sum, run) => sum + run.durationMs, 0);
-  const totalCost = runs.reduce((sum, run) => sum + run.costUsd, 0);
-  const averageRetries =
-    totalRuns === 0 ? 0 : runs.reduce((sum, run) => sum + run.retries, 0) / totalRuns;
-  const workflowMap = new Map<string, WorkflowSlice>();
-
-  for (const run of runs) {
-    const current = workflowMap.get(run.workflow);
-
-    if (!current) {
-      workflowMap.set(run.workflow, {
-        name: run.workflow,
-        runs: 1,
-        avgLatencyMs: run.durationMs,
-        failedRuns: run.status === "failed" ? 1 : 0,
-        costUsd: run.costUsd,
-      });
-      continue;
-    }
-
-    current.runs += 1;
-    current.avgLatencyMs += run.durationMs;
-    current.failedRuns += run.status === "failed" ? 1 : 0;
-    current.costUsd += run.costUsd;
-  }
-
-  const workflows = Array.from(workflowMap.values())
-    .map((workflow) => ({
-      ...workflow,
-      avgLatencyMs: Math.round(workflow.avgLatencyMs / workflow.runs),
-      costUsd: Number(workflow.costUsd.toFixed(3)),
-    }))
-    .sort((left, right) => right.runs - left.runs || right.avgLatencyMs - left.avgLatencyMs);
-
-  return {
-    metrics: [
-      {
-        label: "Runs",
-        value: `${totalRuns}`,
-        detail: `${failedRuns} failed, ${runningRuns} active`,
-      },
-      {
-        label: "Average latency",
-        value: `${totalRuns === 0 ? 0 : (totalLatency / totalRuns / 1000).toFixed(1)}s`,
-        detail: "Across visible runs",
-      },
-      {
-        label: "Observed spend",
-        value: `$${totalCost.toFixed(3)}`,
-        detail: `${averageRetries.toFixed(1)} retries per run`,
-      },
-      {
-        label: "Reliability",
-        value: `${totalRuns === 0 ? 0 : Math.round(((totalRuns - failedRuns) / totalRuns) * 100)}%`,
-        detail: "Runs not ending in failure",
-      },
-    ],
-    workflows,
-    activeAlerts: runs.flatMap((run) => run.alerts).slice(0, 8),
-  } satisfies DashboardSnapshot;
+  return buildDashboardSnapshotFromRuns(runs);
 }
 
 export async function createRun(input: CreateRunInput) {

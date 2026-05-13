@@ -1,16 +1,35 @@
 import { DashboardShell } from "@/components/dashboard-shell";
-import { getDashboardSnapshot, listRuns } from "@/lib/observability-data";
+import {
+  getDashboardSnapshot,
+  listRunFilterOptions,
+  listRuns,
+  listRunsPage,
+} from "@/lib/observability-data";
+import { normalizeRunListFilters } from "@/lib/run-filters";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const initialRuns = await listRuns();
-  const snapshot = await getDashboardSnapshot(initialRuns);
+type HomePageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function Home({ searchParams }: HomePageProps) {
+  const rawSearchParams = searchParams ? await searchParams : {};
+  const filters = normalizeRunListFilters(rawSearchParams);
+  const [runsPage, filteredRuns, filterOptions] = await Promise.all([
+    listRunsPage(filters),
+    listRuns(filters),
+    listRunFilterOptions(),
+  ]);
+  const snapshot = await getDashboardSnapshot(filteredRuns);
 
   return (
     <DashboardShell
-      initialRuns={initialRuns}
+      initialRuns={runsPage.data}
+      pagination={runsPage.pagination}
       snapshot={snapshot}
+      filters={filters}
+      filterOptions={filterOptions}
     />
   );
 }

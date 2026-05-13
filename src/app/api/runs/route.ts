@@ -1,27 +1,17 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { createRun, listRuns } from "@/lib/observability-data";
+import { createRun, listRunsPage } from "@/lib/observability-data";
+import { normalizeRunListFilters } from "@/lib/run-filters";
 import { createRunSchema } from "@/lib/validators";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") ?? undefined;
-  const query = searchParams.get("query") ?? undefined;
-  const runs = await listRuns({
-    status:
-      status === "healthy" ||
-      status === "degraded" ||
-      status === "failed" ||
-      status === "running" ||
-      status === "all"
-        ? status
-        : undefined,
-    query,
-  });
+  const filters = normalizeRunListFilters(searchParams);
+  const runsPage = await listRunsPage(filters);
 
   return NextResponse.json({
-    data: runs,
-    total: runs.length,
+    data: runsPage.data,
+    pagination: runsPage.pagination,
   });
 }
 
