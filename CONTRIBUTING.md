@@ -24,7 +24,6 @@ Open `http://localhost:3000`.
 pnpm lint
 pnpm build
 pnpm db:seed
-pnpm agent:demo
 ```
 
 ## Contribution guidelines

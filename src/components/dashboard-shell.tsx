@@ -159,34 +159,36 @@ export function DashboardShell({
                 )}
               </div>
               <p className="text-sm text-slate-500">
-                To send a real sample run into the app, start the dashboard and run
-                <code className="ml-1 rounded bg-slate-800 px-1.5 py-0.5 font-mono text-slate-200">
-                  pnpm agent:demo
-                </code>
-                .
+                Connect your agent by posting run, step, and alert events into the API.
               </p>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
               <p className="text-sm font-medium text-white">Workflow snapshot</p>
               <div className="mt-4 grid gap-3">
-                {snapshot.workflows.map((workflow) => (
-                  <div
-                    key={workflow.name}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-white">{workflow.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {workflow.runs} run{workflow.runs === 1 ? "" : "s"} tracked
-                      </p>
-                    </div>
-                    <div className="text-right text-xs text-slate-400">
-                      <p>{formatDuration(workflow.avgLatencyMs)} avg</p>
-                      <p>{workflow.failedRuns} failed</p>
-                    </div>
+                {snapshot.workflows.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-800 px-3 py-6 text-sm text-slate-500">
+                    No workflows yet. Runs will appear here after ingestion starts.
                   </div>
-                ))}
+                ) : (
+                  snapshot.workflows.map((workflow) => (
+                    <div
+                      key={workflow.name}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-white">{workflow.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {workflow.runs} run{workflow.runs === 1 ? "" : "s"} tracked
+                        </p>
+                      </div>
+                      <div className="text-right text-xs text-slate-400">
+                        <p>{formatDuration(workflow.avgLatencyMs)} avg</p>
+                        <p>{workflow.failedRuns} failed</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -655,7 +657,7 @@ export function DashboardShell({
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 px-4 py-10 text-sm text-slate-500">
-                Add data through the API routes to populate the dashboard.
+                No runs yet. Create a run through <code className="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-slate-300">POST /api/runs</code> and append spans as the agent works.
               </div>
             )}
           </section>

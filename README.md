@@ -36,8 +36,7 @@ The dashboard then reads that stored data back from SQLite and shows the full ru
 
 - SQLite-backed run storage with Prisma
 - Simple dashboard with run explorer, metrics, diagnosis, alerts, and trace timeline
-- Seed command for local demo data
-- Demo agent script that sends a real sample run into the app
+- Reset command for clearing local run data
 - Read and write API routes for runs, steps, alerts, and metrics
 
 ## Stack
@@ -60,8 +59,6 @@ The dashboard then reads that stored data back from SQLite and shows the full ru
 - Metrics summary for run count, reliability, spend, and average latency
 - Workflow snapshot grouped by workflow name
 - API routes for ingestion and inspection
-- Seeded demo data for a clean first-run experience
-- Demo agent script for a live ingestion example
 
 ## Quick start
 
@@ -74,7 +71,7 @@ pnpm dev
 
 Open `http://localhost:3000`.
 
-If you want to reset back to the demo dataset:
+If you want to clear local run data:
 
 ```bash
 pnpm db:seed
@@ -92,16 +89,6 @@ An agent connects by sending HTTP requests to this app:
 4. `PATCH /api/runs/:id` when the run finishes or changes status
 
 The app saves those events in SQLite, and the dashboard reads them back. It then derives simple reliability signals from the run, such as repeated tool instability, schema drift hints, long latency, or spend without outcome.
-
-## Demo agent integration
-
-You can generate a real run from a sample agent script:
-
-```bash
-pnpm agent:demo
-```
-
-The script sends a staged run into the local API so you can watch a new run appear in the dashboard. By default it posts to `http://127.0.0.1:3000`, but you can override that with `OBSERVABILITY_BASE_URL`.
 
 ## API routes
 
@@ -181,7 +168,6 @@ Append alerts:
 - `src/components` - dashboard UI
 - `src/lib` - data layer, Prisma client, validation
 - `prisma` - schema, migrations, seed
-- `scripts/demo-agent.ts` - runnable sample integration
 
 ## Verification status
 
@@ -191,7 +177,6 @@ Current repo verification:
 - `pnpm lint` passes
 - `pnpm build` passes
 - API read/write flow was manually exercised locally
-- `pnpm agent:demo` creates a real run through the ingestion endpoints
 
 Coverage is still focused on core helpers and dashboard aggregation. Full API integration coverage is still pending.
 
