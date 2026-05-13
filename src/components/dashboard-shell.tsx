@@ -8,6 +8,9 @@ import {
   Clock3,
   Database,
   DollarSign,
+  Gauge,
+  ListFilter,
+  Radar,
   Search,
   ShieldAlert,
   Workflow,
@@ -60,6 +63,13 @@ const alertStyles: Record<AlertSeverity, string> = {
   info: "border-sky-500/20 bg-sky-500/5 text-sky-100",
 };
 
+const routeLabels = [
+  "GET /api/metrics",
+  "POST /api/runs",
+  "POST /api/runs/:id/steps",
+  "PATCH /api/runs/:id",
+] as const;
+
 function formatDuration(durationMs: number) {
   if (durationMs < 1000) {
     return `${durationMs}ms`;
@@ -98,6 +108,34 @@ function stepIcon(kind: StepKind) {
   }
 }
 
+function buildActiveFilters(filters: RunListFilters) {
+  const entries = [];
+
+  if (filters.status !== "all") {
+    entries.push(`Status: ${filters.status}`);
+  }
+
+  if (filters.workflow !== "all") {
+    entries.push(`Workflow: ${filters.workflow}`);
+  }
+
+  if (filters.environment !== "all") {
+    entries.push(`Environment: ${filters.environment}`);
+  }
+
+  if (filters.query) {
+    entries.push(`Search: ${filters.query}`);
+  }
+
+  if (filters.from || filters.to) {
+    entries.push(
+      `Window: ${filters.from || "start"} to ${filters.to || "today"}`,
+    );
+  }
+
+  return entries;
+}
+
 export function DashboardShell({
   initialRuns,
   pagination,
@@ -116,12 +154,19 @@ export function DashboardShell({
     filters.from.length > 0 ||
     filters.to.length > 0 ||
     filters.pageSize !== 10;
+  const activeFilters = buildActiveFilters(filters);
+  const runCounts = {
+    healthy: initialRuns.filter((run) => run.status === "healthy").length,
+    degraded: initialRuns.filter((run) => run.status === "degraded").length,
+    failed: initialRuns.filter((run) => run.status === "failed").length,
+    running: initialRuns.filter((run) => run.status === "running").length,
+  };
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
         <section className="rounded-2xl border border-slate-800 bg-slate-900">
-          <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.25fr_0.75fr]">
+          <div className="grid gap-5 px-5 py-5 lg:grid-cols-[1.3fr_0.7fr]">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
                 <span className="rounded-full border border-slate-700 px-3 py-1">
@@ -142,30 +187,45 @@ export function DashboardShell({
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                {[
-                  "GET /api/metrics",
-                  "POST /api/runs",
-                  "POST /api/runs/:id/steps",
-                  "PATCH /api/runs/:id",
-                ].map(
-                  (route) => (
-                    <span
-                      key={route}
-                      className="rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1 font-mono"
-                    >
-                      {route}
-                    </span>
-                  ),
-                )}
+                {routeLabels.map((route) => (
+                  <span
+                    key={route}
+                    className="rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1 font-mono"
+                  >
+                    {route}
+                  </span>
+                ))}
               </div>
-              <p className="text-sm text-slate-500">
-                Connect your agent by posting run, step, and alert events into the API.
-              </p>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <StatusStat
+                  label="Healthy"
+                  value={`${runCounts.healthy}`}
+                  tone={statusStyles.healthy}
+                />
+                <StatusStat
+                  label="Degraded"
+                  value={`${runCounts.degraded}`}
+                  tone={statusStyles.degraded}
+                />
+                <StatusStat
+                  label="Failed"
+                  value={`${runCounts.failed}`}
+                  tone={statusStyles.failed}
+                />
+                <StatusStat
+                  label="Running"
+                  value={`${runCounts.running}`}
+                  tone={statusStyles.running}
+                />
+              </div>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-              <p className="text-sm font-medium text-white">Workflow snapshot</p>
-              <div className="mt-4 grid gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-white">Workflow snapshot</p>
+                <Radar className="size-4 text-slate-500" />
+              </div>
+              <div className="mt-4 grid gap-2.5">
                 {snapshot.workflows.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-slate-800 px-3 py-6 text-sm text-slate-500">
                     No workflows yet. Runs will appear here after ingestion starts.
@@ -312,10 +372,36 @@ export function DashboardShell({
                 </div>
               </form>
 
+              {activeFilters.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-800 px-2 py-1">
+                    <ListFilter className="size-3.5" />
+                    Active filters
+                  </span>
+                  {activeFilters.map((filter) => (
+                    <span
+                      key={filter}
+                      className="rounded-md border border-slate-800 bg-slate-950 px-2 py-1"
+                    >
+                      {filter}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
               <div className="grid max-h-[980px] gap-3 overflow-y-auto pr-1">
                 {initialRuns.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 px-4 py-8 text-sm text-slate-500">
-                    No runs match the current filters.
+                  <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 px-4 py-8">
+                    <p className="text-sm font-medium text-white">
+                      {pagination.total === 0
+                        ? "No runs ingested yet."
+                        : "No runs match the current filters."}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      {pagination.total === 0
+                        ? "Create a run with POST /api/runs, then stream steps and alerts as the workflow executes."
+                        : "Reset or loosen the filters to bring matching runs back into view."}
+                    </p>
                   </div>
                 ) : (
                   initialRuns.map((run) => {
@@ -328,23 +414,31 @@ export function DashboardShell({
                         onClick={() => setSelectedRunId(run.id)}
                         className={`rounded-xl border px-4 py-4 text-left ${
                           active
-                            ? "border-slate-600 bg-slate-800"
+                            ? "border-slate-600 bg-slate-800/90 shadow-[0_0_0_1px_rgba(148,163,184,0.15)]"
                             : "border-slate-800 bg-slate-950"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-2">
-                            <span
-                              className={`inline-flex rounded-full px-2 py-1 text-xs ${statusStyles[run.status]}`}
-                            >
-                              {run.status}
-                            </span>
-                            <div>
+                          <div className="min-w-0 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-xs ${statusStyles[run.status]}`}
+                              >
+                                {run.status}
+                              </span>
+                              <span className="text-xs text-slate-500">
+                                {formatStartedAt(run.startedAt)}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
                               <p className="text-sm font-medium text-white">{run.name}</p>
                               <p className="mt-1 text-sm text-slate-500">
                                 {run.workflow}
                               </p>
                             </div>
+                            <p className="line-clamp-2 text-sm leading-6 text-slate-400">
+                              {run.diagnosis.headline}
+                            </p>
                           </div>
                           <div className="text-right text-xs text-slate-500">
                             <p>{formatDuration(run.durationMs)}</p>
@@ -354,6 +448,15 @@ export function DashboardShell({
                         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
                           <span className="rounded-md border border-slate-800 px-2 py-1">
                             {run.customer}
+                          </span>
+                          <span className="rounded-md border border-slate-800 px-2 py-1">
+                            {run.retries} retries
+                          </span>
+                          <span className="rounded-md border border-slate-800 px-2 py-1">
+                            {run.alerts.length} alerts
+                          </span>
+                          <span className="rounded-md border border-slate-800 px-2 py-1">
+                            {run.signals.length} signals
                           </span>
                           {run.tags.slice(0, 2).map((tag) => (
                             <span
@@ -406,7 +509,7 @@ export function DashboardShell({
             {selectedRun ? (
               <div className="grid gap-6">
                 <header className="rounded-xl border border-slate-800 bg-slate-950 p-5">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
@@ -428,13 +531,19 @@ export function DashboardShell({
                         <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-400">
                           {selectedRun.summary}
                         </p>
-                        <p className="mt-2 text-sm font-medium text-slate-300">
+                        <p className="mt-3 text-sm font-medium text-slate-200">
                           {selectedRun.diagnosis.headline}
                         </p>
                       </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                        <SummaryPill label="Customer" value={selectedRun.customer} />
+                        <SummaryPill label="Signals" value={`${selectedRun.signals.length}`} />
+                        <SummaryPill label="Alerts" value={`${selectedRun.alerts.length}`} />
+                        <SummaryPill label="Steps" value={`${selectedRun.steps.length}`} />
+                      </div>
                     </div>
 
-                    <div className="grid gap-2 text-sm text-slate-400 xl:min-w-[240px]">
+                    <div className="grid gap-2 text-sm text-slate-400 xl:min-w-[260px]">
                       <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2">
                         <span>Started</span>
                         <span className="text-white">
@@ -457,7 +566,7 @@ export function DashboardShell({
                   </div>
 
                   <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <StatCard icon={Bot} label="Outcome score" value={`${selectedRun.successScore}/100`} />
+                    <StatCard icon={Gauge} label="Outcome score" value={`${selectedRun.successScore}/100`} />
                     <StatCard icon={Clock3} label="Retries" value={`${selectedRun.retries}`} />
                     <StatCard icon={DollarSign} label="Tokens" value={selectedRun.tokens.toLocaleString()} />
                     <StatCard
@@ -482,28 +591,45 @@ export function DashboardShell({
                       </div>
                     </div>
 
-                    <div className="grid gap-3">
-                      {selectedRun.steps.map((step) => {
+                    <div className="relative grid gap-3">
+                      <div className="pointer-events-none absolute bottom-4 left-[18px] top-4 hidden w-px bg-slate-800 sm:block" />
+                      {selectedRun.steps.map((step, index) => {
                         const StepIcon = stepIcon(step.kind);
 
                         return (
                           <article
                             key={step.id}
-                            className={`rounded-xl border p-4 ${stepStyles[step.status]}`}
+                            className={`relative rounded-xl border p-4 sm:pl-5 ${stepStyles[step.status]}`}
                           >
                             <div className="flex gap-3">
-                              <div className="mt-0.5 flex size-9 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-slate-300">
+                              <div className="mt-0.5 flex size-9 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-slate-300 sm:relative sm:z-10">
                                 <StepIcon className="size-4" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                   <div>
                                     <div className="flex flex-wrap items-center gap-2">
+                                      <span className="rounded-md border border-slate-800 px-2 py-0.5 text-[11px] text-slate-500">
+                                        {index + 1}
+                                      </span>
                                       <p className="text-sm font-medium text-white">
                                         {step.label}
                                       </p>
                                       <span className="rounded-md border border-slate-800 px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] text-slate-500">
                                         {step.kind}
+                                      </span>
+                                      <span
+                                        className={`rounded-md px-2 py-0.5 text-[11px] ${statusStyles[
+                                          step.status === "completed"
+                                            ? "healthy"
+                                            : step.status === "warning"
+                                              ? "degraded"
+                                              : step.status === "failed"
+                                                ? "failed"
+                                                : "running"
+                                        ]}`}
+                                      >
+                                        {step.status}
                                       </span>
                                       {step.attempt ? (
                                         <span className="rounded-md border border-slate-800 px-2 py-0.5 text-[11px] text-slate-500">
@@ -552,7 +678,7 @@ export function DashboardShell({
                     </div>
                   </div>
 
-                  <aside className="space-y-4">
+                  <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
                     <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
                       <h3 className="text-sm font-medium text-white">Likely cause</h3>
                       <div className="mt-3 rounded-lg border border-slate-800 px-3 py-3">
@@ -584,9 +710,14 @@ export function DashboardShell({
                               key={signal.id}
                               className={`rounded-lg border px-3 py-3 ${alertStyles[signal.severity]}`}
                             >
-                              <p className="text-sm font-medium text-white">
-                                {signal.title}
-                              </p>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-medium text-white">
+                                  {signal.title}
+                                </p>
+                                <span className="text-[11px] uppercase tracking-[0.12em] text-current/80">
+                                  {signal.severity}
+                                </span>
+                              </div>
                               <p className="mt-2 text-sm leading-6 text-current/90">
                                 {signal.detail}
                               </p>
@@ -656,8 +787,23 @@ export function DashboardShell({
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 px-4 py-10 text-sm text-slate-500">
-                No runs yet. Create a run through <code className="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-slate-300">POST /api/runs</code> and append spans as the agent works.
+              <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 px-5 py-10">
+                <p className="text-base font-medium text-white">No run selected.</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                  Start by creating a run, then stream steps and alerts into it as the
+                  workflow executes. The debugger will derive totals, surface likely
+                  causes, and show where retries or failures started to accumulate.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-400">
+                  {routeLabels.map((route) => (
+                    <span
+                      key={route}
+                      className="rounded-md border border-slate-800 px-2 py-1 font-mono"
+                    >
+                      {route}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -684,5 +830,44 @@ function StatCard({
       </div>
       <p className="mt-2 text-lg font-medium text-white">{value}</p>
     </div>
+  );
+}
+
+function StatusStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs uppercase tracking-[0.12em] text-slate-500">
+          {label}
+        </span>
+        <span className={`rounded-full px-2 py-1 text-[11px] ${tone}`}>
+          {label.toLowerCase()}
+        </span>
+      </div>
+      <p className="mt-2 text-xl font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function SummaryPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <span className="rounded-md border border-slate-800 px-2 py-1 text-xs text-slate-400">
+      <span className="text-slate-500">{label}</span>
+      <span className="ml-1 text-slate-200">{value}</span>
+    </span>
   );
 }
