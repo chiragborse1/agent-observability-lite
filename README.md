@@ -64,6 +64,8 @@ The dashboard then reads that stored data back from SQLite and shows the full ru
 
 ## Quick start
 
+From the repo:
+
 ```bash
 pnpm install
 pnpm db:migrate
@@ -78,6 +80,15 @@ In another terminal, verify the dashboard and create a real test run:
 ```bash
 pnpm aol status
 pnpm aol send-test-run
+```
+
+From npm after publishing:
+
+```bash
+npx agent-observability-lite setup
+npx agent-observability-lite dev
+npx agent-observability-lite status
+npx agent-observability-lite send-test-run
 ```
 
 If you want to clear local run data:
@@ -109,9 +120,16 @@ Run it locally with:
 pnpm aol <command>
 ```
 
+After npm publish, the same CLI is available with:
+
+```bash
+npx agent-observability-lite <command>
+```
+
 Available commands:
 
 ```bash
+pnpm aol setup
 pnpm aol dev
 pnpm aol status
 pnpm aol open

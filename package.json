@@ -1,11 +1,55 @@
 {
   "name": "agent-observability-lite",
   "version": "0.1.0",
-  "private": true,
+  "description": "Local-first reliability debugger and CLI for AI agent runs, traces, retries, failures, latency, and cost.",
+  "license": "MIT",
+  "author": "Chirag Borse",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chiragborse1/agent-observability-lite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chiragborse1/agent-observability-lite/issues"
+  },
+  "homepage": "https://github.com/chiragborse1/agent-observability-lite#readme",
+  "keywords": [
+    "ai",
+    "agents",
+    "observability",
+    "tracing",
+    "debugging",
+    "reliability",
+    "cli",
+    "nextjs"
+  ],
+  "engines": {
+    "node": ">=20.18.0"
+  },
   "bin": {
     "aol": "./bin/aol.mjs",
     "agent-observability-lite": "./bin/aol.mjs"
   },
+  "files": [
+    "bin",
+    "src/app",
+    "src/components",
+    "src/lib/observability-data.ts",
+    "src/lib/prisma.ts",
+    "src/lib/run-analytics.ts",
+    "src/lib/run-diagnosis.ts",
+    "src/lib/run-filters.ts",
+    "src/lib/validators.ts",
+    "prisma/schema.prisma",
+    "prisma/migrations",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "next.config.ts",
+    "postcss.config.mjs",
+    "eslint.config.mjs",
+    "tsconfig.json"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,27 +59,28 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "aol": "node bin/aol.mjs",
-    "cli:check": "node --check bin/aol.mjs"
+    "cli:check": "node --check bin/aol.mjs",
+    "prepack": "pnpm cli:check"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
-    "lucide-react": "^1.14.0",
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "lucide-react": "^1.14.0",
+    "next": "16.2.6",
+    "prisma": "^6.19.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "prisma": "^6.19.0",
-    "tailwindcss": "^4",
-    "tsx": "^4.21.0",
-    "typescript": "^5"
+    "tsx": "^4.21.0"
   }
 }

@@ -4,12 +4,19 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
-const CONFIG_PATH = resolve(homedir(), ".agent-observability-lite", "config.json");
+const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const requireFromPackage = createRequire(import.meta.url);
+const DATA_DIR = resolve(homedir(), ".agent-observability-lite");
+const CONFIG_PATH = resolve(DATA_DIR, "config.json");
+const DEFAULT_DATABASE_PATH = resolve(DATA_DIR, "dev.db");
 
 const COMMANDS = new Set([
   "help",
+  "setup",
   "config",
   "dev",
   "status",
@@ -28,6 +35,7 @@ Usage:
   aol <command> [options]
 
 Core:
+  aol setup
   aol dev
   aol status [--json] [--base-url <url>]
   aol open [--base-url <url>]
@@ -104,8 +112,12 @@ function readConfig() {
 }
 
 function writeConfig(config) {
-  mkdirSync(dirname(CONFIG_PATH), { recursive: true });
+  mkdirSync(DATA_DIR, { recursive: true });
   writeFileSync(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`);
+}
+
+function getDatabaseUrl() {
+  return process.env.DATABASE_URL || `file:${DEFAULT_DATABASE_PATH}`;
 }
 
 function getBaseUrl(flags = {}) {
@@ -135,6 +147,41 @@ function printResult(value, flags = {}) {
 function fail(message, code = 1) {
   console.error(`Error: ${message}`);
   process.exit(code);
+}
+
+function spawnProcess(command, args, options = {}) {
+  const child = spawn(command, args, {
+    cwd: options.cwd ?? PACKAGE_ROOT,
+    env: {
+      ...process.env,
+      DATABASE_URL: getDatabaseUrl(),
+      ...(options.env ?? {}),
+    },
+    stdio: options.stdio ?? "inherit",
+    shell: process.platform === "win32",
+  });
+
+  return child;
+}
+
+function runProcess(command, args, options = {}) {
+  return new Promise((resolveProcess, rejectProcess) => {
+    const child = spawnProcess(command, args, options);
+
+    child.on("error", rejectProcess);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolveProcess();
+        return;
+      }
+
+      rejectProcess(new Error(`${command} ${args.join(" ")} exited with ${code}`));
+    });
+  });
+}
+
+function resolveDependency(entrypoint) {
+  return requireFromPackage.resolve(entrypoint);
 }
 
 function requireFlag(flags, key) {
@@ -219,12 +266,69 @@ async function commandConfig(positional, flags) {
   fail(`Unknown config action: ${action}`);
 }
 
-async function commandDev() {
-  const child = spawn("pnpm", ["dev"], {
-    cwd: process.cwd(),
-    stdio: "inherit",
-    shell: process.platform === "win32",
+async function ensureDashboardDatabase() {
+  mkdirSync(DATA_DIR, { recursive: true });
+
+  await runProcess(
+    process.execPath,
+    [
+      resolveDependency("prisma/build/index.js"),
+      "generate",
+      "--schema",
+      resolve(PACKAGE_ROOT, "prisma/schema.prisma"),
+    ],
+    {
+      stdio: "pipe",
+    },
+  );
+
+  await runProcess(
+    process.execPath,
+    [
+      resolveDependency("prisma/build/index.js"),
+      "migrate",
+      "deploy",
+      "--schema",
+      resolve(PACKAGE_ROOT, "prisma/schema.prisma"),
+    ],
+    {
+      stdio: "pipe",
+    },
+  );
+}
+
+async function commandSetup(flags) {
+  await ensureDashboardDatabase();
+  printResult(
+    {
+      ok: true,
+      databaseUrl: getDatabaseUrl(),
+      configPath: CONFIG_PATH,
+    },
+    flags,
+  );
+}
+
+async function commandDev(flags) {
+  await ensureDashboardDatabase();
+
+  const port = flags.port && flags.port !== true ? flags.port : "3000";
+  const hostname = flags.hostname && flags.hostname !== true ? flags.hostname : "127.0.0.1";
+  const baseUrl = `http://${hostname}:${port}`;
+  writeConfig({
+    ...readConfig(),
+    baseUrl,
   });
+
+  const child = spawnProcess(process.execPath, [
+    resolveDependency("next/dist/bin/next"),
+    "dev",
+    "--webpack",
+    "--hostname",
+    hostname,
+    "--port",
+    port,
+  ]);
 
   child.on("exit", (code) => {
     process.exit(code ?? 0);
@@ -584,10 +688,12 @@ async function main() {
   try {
     if (command === "help") {
       printHelp();
+    } else if (command === "setup") {
+      await commandSetup(flags);
     } else if (command === "config") {
       await commandConfig(positional, flags);
     } else if (command === "dev") {
-      await commandDev();
+      await commandDev(flags);
     } else if (command === "status") {
       await commandStatus(flags);
     } else if (command === "open") {
